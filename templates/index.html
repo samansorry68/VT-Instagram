@@ -1,55 +1,189 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>V.T Instagram</title>
-  <style>
-    body { font-family: sans-serif; background: #f5f3ff; margin: 0; padding: 20px; color: #222; }
-    main { max-width: 600px; margin: 30px auto; background: white; padding: 22px; border-radius: 16px; box-shadow: 0 4px 18px #ddd; }
-    h1 { color: #7137b8; }
-    input, button, textarea { box-sizing: border-box; width: 100%; padding: 13px; margin: 8px 0; border-radius: 9px; font-size: 16px; }
-    input, textarea { border: 1px solid #ccc; }
-    button { border: 0; background: #7137b8; color: white; font-weight: bold; }
-    .note { background: #fff3cd; padding: 12px; border-radius: 8px; line-height: 1.8; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V.T Instagram</title>
+<style>
+body{font-family:sans-serif;background:#f5f3ff;margin:0;padding:16px;color:#222}
+main{max-width:650px;margin:20px auto;background:white;padding:20px;border-radius:16px;box-shadow:0 4px 18px #ddd}
+h1{color:#7137b8}
+input,button,textarea{box-sizing:border-box;width:100%;padding:13px;margin:8px 0;border-radius:9px;font-size:16px}
+input,textarea{border:1px solid #ccc}
+button{border:0;background:#7137b8;color:white;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.55}
+.note{background:#fff3cd;padding:12px;border-radius:8px;line-height:1.8}
+#status{white-space:pre-wrap;line-height:1.8}
+.comment{border-bottom:1px solid #eee;padding:10px 0;overflow-wrap:anywhere}
+.small{font-size:13px;color:#666}
+</style>
 </head>
 <body>
 <main>
-  <h1>V.T Instagram</h1>
-  <p>ابزار جمع‌آوری و مرتب‌سازی کامنت‌های اینستاگرام</p>
-  <label for="post">لینک پست عمومی اینستاگرام</label>
-  <input id="post" type="url" placeholder="https://www.instagram.com/p/.../">
-  <button onclick="copyLink()">کپی لینک پست</button>
-  <p class="note">این نسخه فعلاً رابط اولیه است. جمع‌آوری خودکار کامنت‌ها هنوز به اتصال و اصلاح بخش سرور نیاز دارد.</p>
-  <h3>کامنت‌ها</h3>
-  <textarea id="comments" rows="8" placeholder="کامنت‌ها را اینجا قرار بده..."></textarea>
-  <button onclick="copyComments()">کپی همه کامنت‌ها</button>
-  <button onclick="downloadCSV()">دریافت فایل CSV برای اکسل</button>
+<h1>V.T Instagram</h1>
+<p>دریافت، کپی و خروجی Excel از کامنت‌های قابل‌دسترسی</p>
+
+<label for="post">لینک پست عمومی اینستاگرام</label>
+<input id="post" type="url" placeholder="https://www.instagram.com/p/..." dir="ltr">
+
+<label for="limit">حداکثر تعداد کامنت درخواستی</label>
+<input id="limit" type="number" min="1" max="5000" value="500">
+
+<button id="fetchBtn" onclick="fetchComments()">دریافت کامنت‌ها</button>
+<p id="status" role="status">آماده دریافت لینک پست.</p>
+
+<div id="results" hidden>
+<h3>کامنت‌های دریافت‌شده: <span id="count">0</span></h3>
+<button onclick="copyComments()">کپی همه کامنت‌ها</button>
+<button onclick="exportExcel()">دانلود فایل Excel</button>
+<div id="commentList"></div>
+</div>
+
+<p class="note">دریافت کامنت‌ها به دسترسی سرور و محدودیت‌های اینستاگرام بستگی دارد. ممکن است همه کامنت‌ها قابل دریافت نباشند.</p>
+<p class="small">V.T Instagram</p>
 </main>
+
 <script>
-function copyLink() {
-  const v = document.getElementById('post').value;
-  if (!v) return alert('ابتدا لینک پست را وارد کن.');
-  if (navigator.clipboard) navigator.clipboard.writeText(v).then(() => alert('لینک کپی شد.'));
-  else alert('لینک: ' + v);
+let commentsData = [];
+
+async function fetchComments() {
+  const url = document.getElementById('post').value.trim();
+  const limit = Number(document.getElementById('limit').value) || 500;
+  const status = document.getElementById('status');
+  const btn = document.getElementById('fetchBtn');
+
+  if (!url) {
+    status.textContent = 'ابتدا لینک پست را وارد کن.';
+    return;
+  }
+
+  if (limit < 1 || limit > 5000) {
+    status.textContent = 'تعداد باید بین ۱ تا ۵۰۰۰ باشد.';
+    return;
+  }
+
+  btn.disabled = true;
+  status.textContent = 'در حال دریافت کامنت‌ها؛ لطفاً صبر کن...';
+  document.getElementById('results').hidden = true;
+  commentsData = [];
+
+  try {
+    const response = await fetch('/api/comments', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url: url, limit: limit})
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || 'دریافت کامنت‌ها ناموفق بود.');
+    }
+
+    commentsData = data.comments || [];
+    renderComments();
+
+    status.textContent = commentsData.length
+      ? 'دریافت انجام شد. تعداد: ' + commentsData.length +
+        (data.note ? '\n' + data.note : '')
+      : 'درخواست موفق بود، اما کامنتی دریافت نشد.';
+
+    document.getElementById('results').hidden = false;
+  } catch (error) {
+    status.textContent = 'خطا: ' + (error.message ||
+      'ارتباط با سرور برقرار نشد. کمی بعد دوباره تلاش کن.');
+  } finally {
+    btn.disabled = false;
+  }
 }
-function copyComments() {
-  const v = document.getElementById('comments').value;
-  if (!v) return alert('هنوز کامنتی وارد نشده است.');
-  if (navigator.clipboard) navigator.clipboard.writeText(v).then(() => alert('کامنت‌ها کپی شدند.'));
-  else alert('امکان کپی خودکار در این مرورگر فراهم نیست.');
+
+function renderComments() {
+  const list = document.getElementById('commentList');
+  list.replaceChildren();
+  document.getElementById('count').textContent = commentsData.length;
+
+  commentsData.forEach((item, i) => {
+    const box = document.createElement('div');
+    box.className = 'comment';
+
+    const title = document.createElement('strong');
+    title.textContent = (i + 1) + '. @' + (item.username || 'ناشناس');
+
+    const text = document.createElement('div');
+    text.textContent = item.text || '';
+
+    const details = document.createElement('div');
+    details.className = 'small';
+    details.textContent = (item.date || '') +
+      ' | لایک: ' + (item.likes || 0);
+
+    box.append(title, text, details);
+    list.appendChild(box);
+  });
 }
-function downloadCSV() {
-  const rows = document.getElementById('comments').value.split(/\r?\n/).filter(x => x.trim()).map(x => '"' + x.replace(/"/g, '""') + '"');
-  if (!rows.length) return alert('ابتدا کامنت‌ها را وارد کن.');
-  const blob = new Blob(['\uFEFFکامنت\r\n' + rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'VT-Instagram-comments.csv';
-  a.click();
-  URL.revokeObjectURL(a.href);
+
+async function copyComments() {
+  if (!commentsData.length) {
+    alert('کامنتی برای کپی وجود ندارد.');
+    return;
+  }
+
+  const text = commentsData.map(c =>
+    '@' + (c.username || '') + ': ' + (c.text || '')
+  ).join('\n');
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('همه کامنت‌های دریافت‌شده کپی شدند.');
+  } catch {
+    const area = document.createElement('textarea');
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    alert(ok ? 'کامنت‌ها کپی شدند.' : 'کپی خودکار انجام نشد.');
+  }
+}
+
+async function exportExcel() {
+  if (!commentsData.length) {
+    alert('ابتدا کامنت‌ها را دریافت کن.');
+    return;
+  }
+
+  const status = document.getElementById('status');
+  status.textContent = 'در حال ساخت فایل Excel...';
+
+  try {
+    const response = await fetch('/api/export.xlsx', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({comments: commentsData})
+    });
+
+    if (!response.ok) {
+      let message = 'ساخت فایل Excel ناموفق بود.';
+      try {
+        const data = await response.json();
+        message = data.error || message;
+      } catch {}
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = 'VT_Instagram_Comments.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+    status.textContent = 'فایل Excel آماده شد.';
+  } catch (error) {
+    status.textContent = 'خطا در خروجی Excel: ' + error.message;
+  }
 }
 </script>
 </body>
