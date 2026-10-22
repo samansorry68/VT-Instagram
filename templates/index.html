@@ -1,0 +1,56 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V.T Instagram</title>
+  <style>
+    body { font-family: sans-serif; background: #f5f3ff; margin: 0; padding: 20px; color: #222; }
+    main { max-width: 600px; margin: 30px auto; background: white; padding: 22px; border-radius: 16px; box-shadow: 0 4px 18px #ddd; }
+    h1 { color: #7137b8; }
+    input, button, textarea { box-sizing: border-box; width: 100%; padding: 13px; margin: 8px 0; border-radius: 9px; font-size: 16px; }
+    input, textarea { border: 1px solid #ccc; }
+    button { border: 0; background: #7137b8; color: white; font-weight: bold; }
+    .note { background: #fff3cd; padding: 12px; border-radius: 8px; line-height: 1.8; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>V.T Instagram</h1>
+  <p>ابزار جمع‌آوری و مرتب‌سازی کامنت‌های اینستاگرام</p>
+  <label for="post">لینک پست عمومی اینستاگرام</label>
+  <input id="post" type="url" placeholder="https://www.instagram.com/p/.../">
+  <button onclick="copyLink()">کپی لینک پست</button>
+  <p class="note">این نسخه فعلاً رابط اولیه است. جمع‌آوری خودکار کامنت‌ها هنوز به اتصال و اصلاح بخش سرور نیاز دارد.</p>
+  <h3>کامنت‌ها</h3>
+  <textarea id="comments" rows="8" placeholder="کامنت‌ها را اینجا قرار بده..."></textarea>
+  <button onclick="copyComments()">کپی همه کامنت‌ها</button>
+  <button onclick="downloadCSV()">دریافت فایل CSV برای اکسل</button>
+</main>
+<script>
+function copyLink() {
+  const v = document.getElementById('post').value;
+  if (!v) return alert('ابتدا لینک پست را وارد کن.');
+  if (navigator.clipboard) navigator.clipboard.writeText(v).then(() => alert('لینک کپی شد.'));
+  else alert('لینک: ' + v);
+}
+function copyComments() {
+  const v = document.getElementById('comments').value;
+  if (!v) return alert('هنوز کامنتی وارد نشده است.');
+  if (navigator.clipboard) navigator.clipboard.writeText(v).then(() => alert('کامنت‌ها کپی شدند.'));
+  else alert('امکان کپی خودکار در این مرورگر فراهم نیست.');
+}
+function downloadCSV() {
+  const rows = document.getElementById('comments').value.split(/\r?\n/).filter(x => x.trim()).map(x => '"' + x.replace(/"/g, '""') + '"');
+  if (!rows.length) return alert('ابتدا کامنت‌ها را وارد کن.');
+  const blob = new Blob(['\uFEFFکامنت\r\n' + rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'VT-Instagram-comments.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>
