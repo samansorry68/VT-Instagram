@@ -1,0 +1,4 @@
+Flask>=3.0,<4
+instaloader>=4.14,<5
+openpyxl>=3.1,<4
+gunicorn>=22,<24
