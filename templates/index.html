@@ -74,7 +74,21 @@ async function fetchComments() {
       body: JSON.stringify({url: url, limit: limit})
     });
 
-    const data = await response.json();
+    // Some hosting/proxy errors return an HTML page instead of JSON.
+    // Read text first so the user sees a useful message instead of "Unexpected token '<'".
+    const responseText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      if (response.status === 404) {
+        throw new Error('مسیر دریافت کامنت‌ها در سرور پیدا نشد (۴۰۴). سرویس را بررسی کن.');
+      }
+      if (response.status >= 500) {
+        throw new Error('سرور میزبان خطای داخلی داد (' + response.status + '). چند لحظه بعد دوباره امتحان کن.');
+      }
+      throw new Error('سرور به‌جای پاسخ JSON، صفحه HTML یا پاسخ نامعتبر فرستاد (HTTP ' + response.status + '). صفحه را تازه‌سازی کن؛ اگر تکرار شد، گزارش سرور را بررسی می‌کنیم.');
+    }
 
     if (!response.ok || !data.ok) {
       throw new Error(data.error || 'دریافت کامنت‌ها ناموفق بود.');
