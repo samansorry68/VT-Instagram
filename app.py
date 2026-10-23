@@ -112,6 +112,20 @@ def comments():
         return jsonify({"ok": False, "error": friendly, "error_code": type(e).__name__}), 502
 
 
+@app.post("/api/followers")
+def followers():
+    # Instagram does not provide a supported way to enumerate followers of arbitrary
+    # third-party profiles through this app. Do not pretend a scrape succeeded.
+    data = request.get_json(silent=True) or {}
+    profile = (data.get("url") or "").strip()
+    if not profile:
+        return jsonify({"ok": False, "error": "ابتدا لینک پروفایل یا نام کاربری را وارد کن."}), 400
+    return jsonify({
+        "ok": False,
+        "error": "دریافت خودکار فالوورهای هر پروفایل در این نسخه پشتیبانی نمی‌شود؛ اینستاگرام دسترسی آن را محدود می‌کند. برای اینکه دکمه واقعاً کار کند، باید مسیر رسمی و مجاز برای حسابی که مدیریت می‌کنی پیاده‌سازی شود."
+    }), 501
+
+
 @app.post("/api/export.xlsx")
 def export_xlsx():
     data = request.get_json(silent=True) or {}
