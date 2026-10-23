@@ -1,204 +1,32 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>V.T Instagram</title>
 <style>
-body{font-family:sans-serif;background:#f5f3ff;margin:0;padding:16px;color:#222}
-main{max-width:650px;margin:20px auto;background:white;padding:20px;border-radius:16px;box-shadow:0 4px 18px #ddd}
-h1{color:#7137b8}
-input,button,textarea{box-sizing:border-box;width:100%;padding:13px;margin:8px 0;border-radius:9px;font-size:16px}
-input,textarea{border:1px solid #ccc}
-button{border:0;background:#7137b8;color:white;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.55}
-.note{background:#fff3cd;padding:12px;border-radius:8px;line-height:1.8}
-#status{white-space:pre-wrap;line-height:1.8}
-.comment{border-bottom:1px solid #eee;padding:10px 0;overflow-wrap:anywhere}
-.small{font-size:13px;color:#666}
-</style>
-</head>
-<body>
-<main>
-<h1>V.T Instagram</h1>
-<p>دریافت، کپی و خروجی Excel از کامنت‌های قابل‌دسترسی</p>
-
-<label for="post">لینک پست عمومی اینستاگرام</label>
-<input id="post" type="url" placeholder="https://www.instagram.com/p/..." dir="ltr">
-
-<label for="limit">حداکثر تعداد کامنت درخواستی</label>
-<input id="limit" type="number" min="1" max="5000" value="500">
-
-<button id="fetchBtn" onclick="fetchComments()">دریافت کامنت‌ها</button>
-<p id="status" role="status">آماده دریافت لینک پست.</p>
-
-<div id="results" hidden>
-<h3>کامنت‌های دریافت‌شده: <span id="count">0</span></h3>
-<button onclick="copyComments()">کپی همه کامنت‌ها</button>
-<button onclick="exportExcel()">دانلود فایل Excel</button>
-<div id="commentList"></div>
-</div>
-
-<p class="note">دریافت کامنت‌ها به دسترسی سرور و محدودیت‌های اینستاگرام بستگی دارد. ممکن است همه کامنت‌ها قابل دریافت نباشند.</p>
-<p class="small">V.T Instagram</p>
-</main>
-
-<script>
-let commentsData = [];
-
-async function fetchComments() {
-  const url = document.getElementById('post').value.trim();
-  const limit = Number(document.getElementById('limit').value) || 500;
-  const status = document.getElementById('status');
-  const btn = document.getElementById('fetchBtn');
-
-  if (!url) {
-    status.textContent = 'ابتدا لینک پست را وارد کن.';
-    return;
-  }
-
-  if (limit < 1 || limit > 5000) {
-    status.textContent = 'تعداد باید بین ۱ تا ۵۰۰۰ باشد.';
-    return;
-  }
-
-  btn.disabled = true;
-  status.textContent = 'در حال دریافت کامنت‌ها؛ لطفاً صبر کن...';
-  document.getElementById('results').hidden = true;
-  commentsData = [];
-
-  try {
-    const response = await fetch('/api/comments', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({url: url, limit: limit})
-    });
-
-    // Some hosting/proxy errors return an HTML page instead of JSON.
-    // Read text first so the user sees a useful message instead of "Unexpected token '<'".
-    const responseText = await response.text();
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch {
-      if (response.status === 404) {
-        throw new Error('مسیر دریافت کامنت‌ها در سرور پیدا نشد (۴۰۴). سرویس را بررسی کن.');
-      }
-      if (response.status >= 500) {
-        throw new Error('سرور میزبان خطای داخلی داد (' + response.status + '). چند لحظه بعد دوباره امتحان کن.');
-      }
-      throw new Error('سرور به‌جای پاسخ JSON، صفحه HTML یا پاسخ نامعتبر فرستاد (HTTP ' + response.status + '). صفحه را تازه‌سازی کن؛ اگر تکرار شد، گزارش سرور را بررسی می‌کنیم.');
-    }
-
-    if (!response.ok || !data.ok) {
-      throw new Error(data.error || 'دریافت کامنت‌ها ناموفق بود.');
-    }
-
-    commentsData = data.comments || [];
-    renderComments();
-
-    status.textContent = commentsData.length
-      ? 'دریافت انجام شد. تعداد: ' + commentsData.length +
-        (data.note ? '\n' + data.note : '')
-      : 'درخواست موفق بود، اما کامنتی دریافت نشد.';
-
-    document.getElementById('results').hidden = false;
-  } catch (error) {
-    status.textContent = 'خطا: ' + (error.message ||
-      'ارتباط با سرور برقرار نشد. کمی بعد دوباره تلاش کن.');
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function renderComments() {
-  const list = document.getElementById('commentList');
-  list.replaceChildren();
-  document.getElementById('count').textContent = commentsData.length;
-
-  commentsData.forEach((item, i) => {
-    const box = document.createElement('div');
-    box.className = 'comment';
-
-    const title = document.createElement('strong');
-    title.textContent = (i + 1) + '. @' + (item.username || 'ناشناس');
-
-    const text = document.createElement('div');
-    text.textContent = item.text || '';
-
-    const details = document.createElement('div');
-    details.className = 'small';
-    details.textContent = (item.date || '') +
-      ' | لایک: ' + (item.likes || 0);
-
-    box.append(title, text, details);
-    list.appendChild(box);
-  });
-}
-
-async function copyComments() {
-  if (!commentsData.length) {
-    alert('کامنتی برای کپی وجود ندارد.');
-    return;
-  }
-
-  const text = commentsData.map(c =>
-    '@' + (c.username || '') + ': ' + (c.text || '')
-  ).join('\n');
-
-  try {
-    await navigator.clipboard.writeText(text);
-    alert('همه کامنت‌های دریافت‌شده کپی شدند.');
-  } catch {
-    const area = document.createElement('textarea');
-    area.value = text;
-    document.body.appendChild(area);
-    area.select();
-    const ok = document.execCommand('copy');
-    area.remove();
-    alert(ok ? 'کامنت‌ها کپی شدند.' : 'کپی خودکار انجام نشد.');
-  }
-}
-
-async function exportExcel() {
-  if (!commentsData.length) {
-    alert('ابتدا کامنت‌ها را دریافت کن.');
-    return;
-  }
-
-  const status = document.getElementById('status');
-  status.textContent = 'در حال ساخت فایل Excel...';
-
-  try {
-    const response = await fetch('/api/export.xlsx', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({comments: commentsData})
-    });
-
-    if (!response.ok) {
-      let message = 'ساخت فایل Excel ناموفق بود.';
-      try {
-        const data = await response.json();
-        message = data.error || message;
-      } catch {}
-      throw new Error(message);
-    }
-
-    const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objectUrl;
-    a.download = 'VT_Instagram_Comments.xlsx';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
-    status.textContent = 'فایل Excel آماده شد.';
-  } catch (error) {
-    status.textContent = 'خطا در خروجی Excel: ' + error.message;
-  }
-}
-</script>
-</body>
-</html>
+body{font-family:sans-serif;background:#f5f3ff;margin:0;padding:16px;color:#222}main{max-width:650px;margin:20px auto;background:#fff;padding:20px;border-radius:16px;box-shadow:0 4px 18px #ddd}h1{color:#7137b8}input,button{box-sizing:border-box;width:100%;padding:13px;margin:8px 0;border-radius:9px;font-size:16px}input{border:1px solid #ccc}button{border:0;background:#7137b8;color:white;font-weight:bold}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0}.tabs button{margin:0;background:#e8def8;color:#482078}.tabs button.active{background:#7137b8;color:white}.panel{border:1px solid #eee;border-radius:12px;padding:14px;margin-top:10px}.note{background:#fff3cd;padding:12px;border-radius:8px;line-height:1.8}.status{white-space:pre-wrap;line-height:1.8}.item{border-bottom:1px solid #eee;padding:10px 0;overflow-wrap:anywhere}.small{font-size:13px;color:#666}[hidden]{display:none!important}
+</style></head><body><main>
+<h1>V.T Instagram</h1><p>یکی از دو بخش را انتخاب کن.</p>
+<div class="tabs"><button id="tabC" class="active" onclick="show('c')">کپی کامنت‌ها</button><button id="tabF" onclick="show('f')">کپی فالوورها</button></div>
+<section id="panelC" class="panel"><h3>کپی کامنت‌های پست</h3>
+<label for="post">لینک پست یا ریلز</label><input id="post" placeholder="https://www.instagram.com/p/..." dir="ltr">
+<label for="limit">حداکثر تعداد کامنت</label><input id="limit" type="number" min="1" max="5000" value="500">
+<button id="fetchBtn" onclick="fetchComments()">دریافت کامنت‌ها</button><button onclick="copyComments()">کپی همه کامنت‌های دریافت‌شده</button><button onclick="exportExcel()">دانلود Excel کامنت‌ها</button>
+<p id="status" class="status">آماده دریافت لینک پست.</p><div id="results" hidden><b>تعداد: <span id="count">0</span></b><div id="commentList"></div></div></section>
+<section id="panelF" class="panel" hidden><h3>کپی فالوورهای پروفایل</h3>
+<label for="profile">لینک پروفایل یا نام کاربری</label><input id="profile" placeholder="https://www.instagram.com/username/" dir="ltr">
+<label for="flimit">حداکثر تعداد فالوور</label><input id="flimit" type="number" min="1" max="5000" value="500">
+<button id="fetchFBtn" onclick="fetchFollowers()">دریافت فالوورها</button><button onclick="copyFollowers()">کپی همه فالوورهای دریافت‌شده</button>
+<p id="fstatus" class="status">لینک پروفایل را وارد کن.</p><div id="fresults" hidden><b>تعداد: <span id="fcount">0</span></b><div id="flist"></div></div></section>
+<p class="note">توجه: دکمهٔ کپی فقط داده‌هایی را کپی می‌کند که سرور توانسته دریافت کند. اینستاگرام ممکن است دریافت خودکار را محدود کند؛ عمومی بودن صفحه تضمین دسترسی نیست.</p><p class="small">V.T Instagram</p>
+</main><script>
+let commentsData=[],followersData=[];
+function show(which){let c=which==='c';document.getElementById('panelC').hidden=!c;document.getElementById('panelF').hidden=c;document.getElementById('tabC').classList.toggle('active',c);document.getElementById('tabF').classList.toggle('active',!c)}
+async function postJson(path,payload){let r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let t=await r.text(),d;try{d=JSON.parse(t)}catch{throw Error('پاسخ سرور معتبر نیست (HTTP '+r.status+')')}if(!r.ok||!d.ok)throw Error(d.error||'درخواست ناموفق بود');return d}
+async function fetchComments(){let url=document.getElementById('post').value.trim(),limit=Number(document.getElementById('limit').value)||500,s=document.getElementById('status'),b=document.getElementById('fetchBtn');if(!url){s.textContent='ابتدا لینک پست را وارد کن.';return}if(limit<1||limit>5000){s.textContent='تعداد باید بین ۱ تا ۵۰۰۰ باشد.';return}b.disabled=true;s.textContent='در حال دریافت کامنت‌ها...';commentsData=[];document.getElementById('results').hidden=true;try{let d=await postJson('/api/comments',{url,limit});commentsData=d.comments||[];document.getElementById('count').textContent=commentsData.length;let list=document.getElementById('commentList');list.replaceChildren();commentsData.forEach((x,i)=>{let e=document.createElement('div');e.className='item';e.textContent=(i+1)+'. @'+(x.username||'')+': '+(x.text||'');list.appendChild(e)});document.getElementById('results').hidden=false;s.textContent='کامنت‌های دریافت‌شده: '+commentsData.length+(d.note?'\n'+d.note:'')}catch(e){s.textContent='خطا: '+e.message}finally{b.disabled=false}}
+async function fetchFollowers(){let url=document.getElementById('profile').value.trim(),limit=Number(document.getElementById('flimit').value)||500,s=document.getElementById('fstatus'),b=document.getElementById('fetchFBtn');if(!url){s.textContent='ابتدا لینک پروفایل یا نام کاربری را وارد کن.';return}if(limit<1||limit>5000){s.textContent='تعداد باید بین ۱ تا ۵۰۰۰ باشد.';return}b.disabled=true;s.textContent='در حال دریافت فالوورها...';followersData=[];document.getElementById('fresults').hidden=true;try{let d=await postJson('/api/followers',{url,limit});followersData=d.followers||[];document.getElementById('fcount').textContent=followersData.length;let list=document.getElementById('flist');list.replaceChildren();followersData.forEach((x,i)=>{let e=document.createElement('div');e.className='item';e.textContent=(i+1)+'. @'+(x.username||'')+(x.full_name?' — '+x.full_name:'');list.appendChild(e)});document.getElementById('fresults').hidden=false;s.textContent='فالوورهای دریافت‌شده: '+followersData.length+(d.note?'\n'+d.note:'')}catch(e){s.textContent='خطا: '+e.message}finally{b.disabled=false}}
+async function copyText(t,empty,success){if(!t){alert(empty);return}try{await navigator.clipboard.writeText(t);alert(success)}catch{let a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();let ok=document.execCommand('copy');a.remove();alert(ok?success:'کپی خودکار انجام نشد')}}
+function copyComments(){copyText(commentsData.map(x=>'@'+(x.username||'')+': '+(x.text||'')).join('\n'),'کامنتی دریافت نشده است.','کامنت‌ها کپی شدند.')}
+function copyFollowers(){copyText(followersData.map(x=>'@'+(x.username||'')+(x.full_name?' - '+x.full_name:'')).join('\n'),'فالووری دریافت نشده است.','فالوورها کپی شدند.')}
+async function exportExcel(){if(!commentsData.length){alert('ابتدا کامنت‌ها را دریافت کن.');return}let s=document.getElementById('status');try{let r=await fetch('/api/export.xlsx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({comments:commentsData})});if(!r.ok){let d=await r.json();throw Error(d.error||'ساخت Excel ناموفق بود')}let u=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=u;a.download='VT_Instagram_Comments.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);s.textContent='فایل Excel آماده شد.'}catch(e){s.textContent='خطا: '+e.message}}
+</script></body></html>
