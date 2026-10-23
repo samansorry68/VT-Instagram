@@ -68,6 +68,21 @@ def health():
 
 @app.post("/api/comments")
 def comments():
+    if os.environ.get("APIFY_API_TOKEN", "").strip():
+        try:
+            data = request.get_json(silent=True) or {}
+            url = (data.get("url") or "").strip()
+            shortcode = extract_shortcode(url)
+            from apify_comments import fetch_comments, ApifyCommentsError
+            results = fetch_comments(url, min(max(int(data.get("limit") or 500), 1), 5000))
+            if not results:
+                return jsonify({"ok": False, "error": "برای این لینک کامنتی دریافت نشد؛ ممکن است پست محدود باشد یا سرویس نتواند آن را ببیند."}), 502
+            return jsonify({"ok": True, "shortcode": shortcode, "post_owner": "", "count": len(results), "comments": results, "note": "دریافت از سرویس بیرونی؛ کامل بودن همه کامنت‌ها تضمین نمی‌شود."})
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+        except Exception as e:
+            logger.exception("Apify comments fetch failed (%s)", type(e).__name__)
+            return jsonify({"ok": False, "error": "سرویس استخراج کامنت ناموفق بود. کد خطا: " + type(e).__name__}), 502
     data = request.get_json(silent=True) or {}
     url = (data.get("url") or "").strip()
     shortcode = "unknown"
